@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#0a0f1e"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Tiquet Scanner"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <title>🛒 Tiquet Scanner</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;overflow-x:hidden}
+    body{font-family:'Courier New',monospace;background:#0a0f1e;color:#e8f4ff;min-height:100vh;
+      background-image:radial-gradient(ellipse at 20% 50%,rgba(13,33,55,0.8) 0%,transparent 60%),
+      radial-gradient(ellipse at 80% 20%,rgba(26,10,46,0.6) 0%,transparent 50%)}
+    .header{position:sticky;top:0;z-index:100;padding:14px 20px;background:rgba(10,20,40,0.95);
+      backdrop-filter:blur(12px);border-bottom:1px solid #1e3a5f;
+      display:flex;align-items:center;justify-content:space-between}
+    .header-brand{display:flex;align-items:center;gap:12px}
+    .header-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#2E75B6,#1F4E79);
+      display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 16px rgba(46,117,182,0.5)}
+    .header-title{font-size:14px;font-weight:bold;letter-spacing:2px;color:#7dd3fc}
+    .header-sub{font-size:9px;color:#4a7fa5;letter-spacing:2px;margin-top:2px}
+    .dots{display:flex;gap:6px}
+    .dot{width:7px;height:7px;border-radius:50%;background:#1e3a5f;transition:all 0.3s}
+    .dot.active{background:#2E75B6;box-shadow:0 0 8px #2E75B6}
+    .main{max-width:600px;margin:0 auto;padding:20px 16px 40px}
+    .card{background:rgba(14,30,54,0.8);border:1px solid #1e3a5f;border-radius:16px;padding:20px;margin-bottom:16px}
+    .card-title{font-size:10px;color:#4a7fa5;letter-spacing:3px;margin-bottom:14px}
+    .btn-google{width:100%;padding:14px;border-radius:12px;border:1px solid #4a7fa5;
+      background:rgba(255,255,255,0.05);color:#e8f4ff;font-size:13px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      font-family:'Courier New',monospace;letter-spacing:1px;transition:all 0.2s}
+    .connected-bar{display:flex;align-items:center;gap:12px;padding:12px 16px;
+      background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);
+      border-radius:10px;margin-bottom:12px}
+    .connected-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;flex-shrink:0}
+    .connected-text{font-size:12px;color:#22c55e;flex:1}
+    .btn-disconnect{background:none;border:none;color:#4a7fa5;cursor:pointer;font-size:11px;font-family:'Courier New',monospace}
+    .file-picker-btn{width:100%;padding:14px;border-radius:12px;border:2px dashed #1e3a5f;
+      background:rgba(14,30,54,0.4);color:#7dd3fc;font-size:12px;cursor:pointer;
+      letter-spacing:1px;font-family:'Courier New',monospace;transition:all 0.3s;
+      display:flex;align-items:center;justify-content:center;gap:10px}
+    .file-picker-btn.selected{border-color:#22c55e;background:rgba(34,197,94,0.08);color:#22c55e}
+    .drop-zone{border:2px dashed #1e3a5f;border-radius:14px;padding:28px 14px;cursor:pointer;
+      background:rgba(14,30,54,0.6);text-align:center;transition:all 0.3s;
+      min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .drop-zone.loaded{border-color:#f59e0b;background:rgba(245,158,11,0.06)}
+    .drop-icon{font-size:32px;margin-bottom:10px}
+    .drop-label{font-size:11px;font-weight:bold;color:#7dd3fc;margin-bottom:4px;letter-spacing:1px}
+    .drop-hint{font-size:10px;color:#4a7fa5}
+    .ticket-preview{max-height:120px;max-width:100%;border-radius:8px;object-fit:contain}
+    .btn-primary{width:100%;padding:16px;border-radius:12px;border:none;
+      background:linear-gradient(135deg,#2E75B6,#1F4E79);color:#fff;font-size:13px;
+      font-weight:bold;cursor:pointer;letter-spacing:2px;margin-bottom:16px;
+      box-shadow:0 0 24px rgba(46,117,182,0.4);font-family:'Courier New',monospace}
+    .btn-success{width:100%;padding:16px;border-radius:12px;border:none;
+      background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:13px;
+      font-weight:bold;cursor:pointer;letter-spacing:2px;margin-bottom:12px;
+      box-shadow:0 0 24px rgba(34,197,94,0.35);font-family:'Courier New',monospace}
+    .btn-ghost{width:100%;padding:12px;border-radius:10px;border:1px solid #1e3a5f;
+      background:transparent;color:#4a7fa5;font-size:11px;cursor:pointer;
+      letter-spacing:2px;font-family:'Courier New',monospace}
+    .error-bar{background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.4);
+      border-radius:10px;padding:12px 16px;margin-bottom:20px;color:#fca5a5;
+      font-size:12px;display:flex;align-items:center;gap:10px}
+    .error-bar button{margin-left:auto;background:none;border:none;color:#fca5a5;cursor:pointer;font-size:18px}
+    .center-box{text-align:center;padding:48px 20px;background:rgba(14,30,54,0.6);
+      border-radius:16px;border:1px solid #1e3a5f;margin-bottom:20px}
+    .spin{font-size:48px;display:inline-block;animation:spin 2s linear infinite;margin-bottom:16px}
+    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .center-title{font-size:13px;color:#7dd3fc;letter-spacing:3px}
+    .center-sub{font-size:10px;color:#4a7fa5;margin-top:8px}
+    .super-badge{display:flex;align-items:center;gap:14px;margin-bottom:16px;
+      background:rgba(14,30,54,0.8);border-radius:14px;padding:16px 20px;border:1px solid rgba(255,255,255,0.08)}
+    .super-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+    .super-detected{font-size:9px;color:#4a7fa5;letter-spacing:3px;margin-bottom:3px}
+    .super-name{font-size:20px;font-weight:bold;color:#e8f4ff}
+    .super-count{margin-left:auto;text-align:right;flex-shrink:0}
+    .super-count-label{font-size:9px;color:#4a7fa5;letter-spacing:2px}
+    .super-count-num{font-size:26px;font-weight:bold;color:#7dd3fc}
+    .date-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;
+      background:rgba(255,192,0,0.08);border:1px solid rgba(255,192,0,0.25);
+      border-radius:10px;margin-bottom:16px}
+    .date-label{font-size:10px;color:#4a7fa5;letter-spacing:2px;white-space:nowrap}
+    .date-input{background:rgba(255,192,0,0.15);border:1px solid rgba(255,192,0,0.4);
+      border-radius:6px;color:#FFC000;font-size:13px;font-family:'Courier New',monospace;
+      outline:none;padding:5px 10px;font-weight:bold;width:130px}
+    .picker-label{font-size:10px;color:#4a7fa5;letter-spacing:2px;margin-bottom:10px}
+    .super-buttons{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+    .btn-super{padding:6px 12px;border-radius:8px;border:1px solid #1e3a5f;background:transparent;
+      color:#4a7fa5;font-size:11px;cursor:pointer;font-family:'Courier New',monospace;transition:all 0.2s}
+    .btn-super.active{color:#e8f4ff}
+    .product-list{background:rgba(14,30,54,0.6);border-radius:14px;border:1px solid #1e3a5f;overflow:hidden;margin-bottom:16px}
+    .product-list-header{padding:12px 16px;background:rgba(30,58,95,0.5);border-bottom:1px solid #1e3a5f;
+      display:grid;grid-template-columns:30px 1fr 80px 28px;gap:8px;font-size:9px;color:#4a7fa5;letter-spacing:2px}
+    .product-list-body{max-height:300px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    .product-row{padding:10px 16px;border-bottom:1px solid #0d1f38;display:grid;
+      grid-template-columns:30px 1fr 80px 28px;gap:8px;align-items:center;transition:opacity 0.2s}
+    .product-row:nth-child(even){background:rgba(14,30,54,0.4)}
+    .product-row.excluded{opacity:0.35}
+    .p-check{cursor:pointer;accent-color:#2E75B6;width:15px;height:15px}
+    .p-name{background:transparent;border:none;color:#e8f4ff;font-size:11px;font-family:'Courier New',monospace;outline:none;width:100%}
+    .p-name.edited{color:#f59e0b}
+    .p-price{background:rgba(46,117,182,0.15);border:1px solid #1e3a5f;border-radius:6px;color:#7dd3fc;
+      font-size:11px;font-family:'Courier New',monospace;outline:none;padding:3px 6px;text-align:right;width:100%}
+    .p-del{background:none;border:none;color:#4a7fa5;cursor:pointer;font-size:16px;padding:0}
+    .product-footer{padding:10px 16px;border-top:1px solid #1e3a5f;display:flex;justify-content:flex-end}
+    .btn-add{background:rgba(46,117,182,0.2);border:1px solid #2E75B6;border-radius:8px;color:#7dd3fc;
+      font-size:10px;cursor:pointer;padding:6px 14px;font-family:'Courier New',monospace}
+    .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+    .summary-card{border-radius:12px;padding:14px 16px;text-align:center}
+    .summary-card.green{background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2)}
+    .summary-card.blue{background:rgba(46,117,182,0.08);border:1px solid rgba(46,117,182,0.2)}
+    .summary-label{font-size:9px;color:#4a7fa5;letter-spacing:2px;margin-bottom:6px}
+    .summary-value{font-size:22px;font-weight:bold}
+    .summary-value.green{color:#22c55e}
+    .summary-value.blue{color:#7dd3fc}
+    .done-box{text-align:center;padding:48px 20px;background:rgba(34,197,94,0.05);
+      border-radius:16px;border:1px solid rgba(34,197,94,0.3);margin-bottom:20px}
+    .done-emoji{font-size:60px;margin-bottom:16px}
+    .done-title{font-size:16px;font-weight:bold;color:#22c55e;letter-spacing:2px;margin-bottom:8px}
+    .done-sub{font-size:11px;color:#4a7fa5;margin-bottom:28px;line-height:1.6}
+    .btn-restart{padding:14px 32px;border-radius:12px;border:none;
+      background:linear-gradient(135deg,#2E75B6,#1F4E79);color:#fff;font-size:12px;
+      font-weight:bold;cursor:pointer;letter-spacing:2px;font-family:'Courier New',monospace}
+    .log-box{background:rgba(0,0,0,0.4);border-radius:12px;border:1px solid #0d1f38;padding:14px 16px;margin-top:16px}
+    .log-title{font-size:9px;color:#4a7fa5;letter-spacing:3px;margin-bottom:10px}
+    .log-line{font-size:10px;color:#4a7fa5;margin-bottom:3px}
+    .log-num{color:#1e3a5f;margin-right:8px}
+    .hidden{display:none!important}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999;display:flex;align-items:flex-end;padding:16px}
+    .modal-box{width:100%;max-width:600px;margin:0 auto;background:#0d1f38;border:1px solid #1e3a5f;border-radius:16px;overflow:hidden}
+    .modal-header{padding:14px 20px;background:rgba(30,58,95,0.5);border-bottom:1px solid #1e3a5f;
+      display:flex;justify-content:space-between;align-items:center}
+    .modal-title{font-size:11px;color:#7dd3fc;letter-spacing:2px}
+    .modal-close{background:none;border:none;color:#4a7fa5;font-size:20px;cursor:pointer}
+    .modal-list{max-height:380px;overflow-y:auto}
+    .modal-item{padding:14px 20px;border-bottom:1px solid #0d1f38;cursor:pointer;
+      display:flex;align-items:center;gap:12px;transition:background 0.2s}
+    .modal-item:active{background:rgba(46,117,182,0.15)}
+    .modal-item-name{font-size:12px;color:#e8f4ff}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <div class="header-icon">🛒</div>
+    <div>
+      <div class="header-title">TIQUET SCANNER</div>
+      <div class="header-sub">VALLÈS ORIENTAL · GOOGLE DRIVE</div>
+    </div>
+  </div>
+  <div class="dots">
+    <div class="dot active" id="dot0"></div>
+    <div class="dot" id="dot1"></div>
+    <div class="dot" id="dot2"></div>
+    <div class="dot" id="dot3"></div>
+    <div class="dot" id="dot4"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="error-bar hidden" id="errorBar">
+    <span>⚠️</span><span id="errorMsg"></span>
+    <button onclick="hideError()">×</button>
+  </div>
+
+  <!-- UPLOAD -->
+  <div id="stepUpload">
+    <div class="card">
+      <div class="card-title">① CONNECTA GOOGLE DRIVE</div>
+      <div id="driveNotConnected">
+        <button class="btn-google" onclick="signInGoogle()">
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          CONNECTAR AMB GOOGLE
+        </button>
+      </div>
+      <div id="driveConnected" class="hidden">
+        <div class="connected-bar">
+          <div class="connected-dot"></div>
+          <div class="connected-text" id="connectedEmail">Connectat</div>
+          <button class="btn-disconnect" onclick="signOutGoogle()">Sortir</button>
+        </div>
+        <button class="file-picker-btn" id="filePickerBtn" onclick="openDrivePicker()">
+          <span>📊</span><span id="filePickerLabel">SELECCIONAR EXCEL DE DRIVE</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">② FOTO DEL TIQUET</div>
+      <div class="drop-zone" id="ticketZone" onclick="document.getElementById('ticketInput').click()">
+        <input type="file" id="ticketInput" accept="image/*" capture="environment" class="hidden" onchange="onTicketSelected(this)"/>
+        <div id="ticketContent">
+          <div class="drop-icon">📸</div>
+          <div class="drop-label">TOCA PER OBRIR CÀMERA</div>
+          <div class="drop-hint">O selecciona de la galeria</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-primary hidden" id="analyzeBtn" onclick="analyzeTicket()">
+      🔍 ANALITZAR TIQUET AMB IA
+    </button>
+  </div>
+
+  <!-- DETECTING -->
+  <div id="stepDetecting" class="hidden">
+    <div class="center-box">
+      <div class="spin">⚙️</div>
+      <div class="center-title">ANALITZANT TIQUET...</div>
+      <div class="center-sub">Identificant supermercat, productes i data</div>
+    </div>
+  </div>
+
+  <!-- REVIEW -->
+  <div id="stepReview" class="hidden">
+    <div class="super-badge" id="superBadge">
+      <div class="super-icon" id="superIconEl">🏪</div>
+      <div>
+        <div class="super-detected">SUPERMERCAT DETECTAT</div>
+        <div class="super-name" id="superNameEl">—</div>
+      </div>
+      <div class="super-count">
+        <div class="super-count-label">PRODUCTES</div>
+        <div class="super-count-num" id="superCountEl">0</div>
+      </div>
+    </div>
+    <div class="date-bar">
+      <span class="date-label">📅 DATA:</span>
+      <input class="date-input" id="dateInput" type="text" placeholder="DD/MM/YYYY" onchange="state.ticketDate=this.value"/>
+    </div>
+    <div class="picker-label">CANVIAR SUPERMERCAT:</div>
+    <div class="super-buttons" id="superButtons"></div>
+    <div class="product-list">
+      <div class="product-list-header">
+        <span>INC</span><span>PRODUCTE</span><span style="text-align:right">PREU</span><span></span>
+      </div>
+      <div class="product-list-body" id="productListBody"></div>
+      <div class="product-footer">
+        <button class="btn-add" onclick="addProduct()">+ AFEGIR</button>
+      </div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card green">
+        <div class="summary-label">TOTAL TIQUET</div>
+        <div class="summary-value green" id="totalAmount">0.00 €</div>
+      </div>
+      <div class="summary-card blue">
+        <div class="summary-label">SELECCIONATS</div>
+        <div class="summary-value blue" id="selectedCount">0/0</div>
+      </div>
+    </div>
+    <button class="btn-success" onclick="saveToGoogleDrive()">☁️ GUARDAR A GOOGLE DRIVE</button>
+    <button class="btn-ghost" onclick="reset()">↩ NOU TIQUET</button>
+  </div>
+
+  <!-- SAVING -->
+  <div id="stepSaving" class="hidden">
+    <div class="center-box">
+      <div style="font-size:48px;margin-bottom:16px">☁️</div>
+      <div class="center-title">GUARDANT A DRIVE...</div>
+      <div class="center-sub">Actualitzant el fitxer Excel</div>
+    </div>
+  </div>
+
+  <!-- DONE -->
+  <div id="stepDone" class="hidden">
+    <div class="done-box">
+      <div class="done-emoji">✅</div>
+      <div class="done-title">GUARDAT A DRIVE!</div>
+      <div class="done-sub" id="doneMsg">Excel actualitzat correctament</div>
+      <button class="btn-restart" onclick="reset()">📸 ESCANEJAR ALTRE TIQUET</button>
+    </div>
+  </div>
+
+  <div class="log-box hidden" id="logBox">
+    <div class="log-title">LOG</div>
+    <div id="logLines"></div>
+  </div>
+</div>
+
+<script>
+const CLIENT_ID='437443387421-1fu70cfoi2fc0sgvf1n19rp2obab7j7f.apps.googleusercontent.com';
+const SCOPES='https://www.googleapis.com/auth/drive';
+const SUPERMERCATS=["Lidl","Mercadona","Bon Àrea","Condis","Eroski","Carrefour","Esclat"];
+const SUPER_COLORS={Lidl:"#0050AA",Mercadona:"#F26522","Bon Àrea":"#6DB33F",Condis:"#E30613",Eroski:"#FF6B00",Carrefour:"#004A97",Esclat:"#7B2D8B"};
+const SUPER_ICONS={Lidl:"🔵",Mercadona:"🟠","Bon Àrea":"🟢",Condis:"🔴",Eroski:"🟡",Carrefour:"🔷",Esclat:"🟣"};
+
+let state={step:"upload",accessToken:null,userEmail:null,driveFileId:null,driveFileName:null,ticketFile:null,ticketMime:null,detectedSuper:null,ticketDate:null,products:[],logs:[]};
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+function showError(msg){document.getElementById('errorMsg').textContent=msg;document.getElementById('errorBar').classList.remove('hidden');}
+function hideError(){document.getElementById('errorBar').classList.add('hidden');}
+function addLog(msg){
+  state.logs.push(msg);
+  document.getElementById('logBox').classList.remove('hidden');
+  const d=document.createElement('div');d.className='log-line';
+  d.innerHTML=`<span class="log-num">${String(state.logs.length).padStart(2,'0')}.</span>${msg}`;
+  document.getElementById('logLines').appendChild(d);
+}
+function setStep(s){
+  state.step=s;
+  ['Upload','Detecting','Review','Saving','Done'].forEach(n=>document.getElementById('step'+n).classList.add('hidden'));
+  document.getElementById('step'+s.charAt(0).toUpperCase()+s.slice(1)).classList.remove('hidden');
+  const steps=['upload','detecting','review','saving','done'];
+  steps.forEach((_,i)=>document.getElementById('dot'+i).classList.toggle('active',i<=steps.indexOf(s)));
+}
+function getTodayDate(){const d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+function toBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
+
+// GOOGLE AUTH
+function signInGoogle(){
+  const client=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPES,callback:(resp)=>{
+    if(resp.error){showError('Error: '+resp.error);return;}
+    state.accessToken=resp.access_token;fetchUserInfo();
+  }});
+  client.requestAccessToken();
+}
+async function fetchUserInfo(){
+  try{
+    const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+state.accessToken}});
+    const info=await r.json();
+    state.userEmail=info.email;
+    document.getElementById('driveNotConnected').classList.add('hidden');
+    document.getElementById('driveConnected').classList.remove('hidden');
+    document.getElementById('connectedEmail').textContent='✓ '+info.email;
+    addLog('✅ Connectat: '+info.email);
+    checkShowAnalyze();
+  }catch(e){showError('Error usuari: '+e.message);}
+}
+function signOutGoogle(){
+  if(state.accessToken) google.accounts.oauth2.revoke(state.accessToken,()=>{});
+  state.accessToken=null;state.userEmail=null;state.driveFileId=null;state.driveFileName=null;
+  document.getElementById('driveConnected').classList.add('hidden');
+  document.getElementById('driveNotConnected').classList.remove('hidden');
+  document.getElementById('filePickerLabel').textContent='SELECCIONAR EXCEL DE DRIVE';
+  document.getElementById('filePickerBtn').classList.remove('selected');
+  document.getElementById('analyzeBtn').classList.add('hidden');
+}
+
+// DRIVE PICKER
+async function openDrivePicker(){
+  if(!state.accessToken){showError('Connecta primer amb Google');return;}
+  addLog('📂 Buscant Excel a Drive...');
+  try{
+    const r=await fetch("https://www.googleapis.com/drive/v3/files?q=mimeType%3D'application%2Fvnd.openxmlformats-officedocument.spreadsheetml.sheet'&fields=files(id%2Cname)&orderBy=modifiedTime+desc",
+      {headers:{Authorization:'Bearer '+state.accessToken}});
+    const data=await r.json();
+    if(!data.files||data.files.length===0){showError("No s'han trobat fitxers .xlsx a Drive");return;}
+    addLog(`📊 ${data.files.length} fitxers trobats`);
+    showFileModal(data.files);
+  }catch(e){showError('Error Drive: '+e.message);}
+}
+function showFileModal(files){
+  const existing=document.getElementById('fileModal');if(existing)existing.remove();
+  const m=document.createElement('div');m.id='fileModal';m.className='modal-overlay';
+  m.innerHTML=`<div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">SELECCIONA EL FITXER EXCEL</span>
+      <button class="modal-close" onclick="document.getElementById('fileModal').remove()">×</button>
+    </div>
+    <div class="modal-list">
+      ${files.map(f=>`<div class="modal-item" onclick="selectFile('${f.id}','${f.name.replace(/'/g,"\\'")}')">
+        <span style="font-size:20px">📊</span>
+        <span class="modal-item-name">${f.name}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+}
+function selectFile(id,name){
+  const m=document.getElementById('fileModal');if(m)m.remove();
+  state.driveFileId=id;state.driveFileName=name;
+  document.getElementById('filePickerBtn').classList.add('selected');
+  document.getElementById('filePickerLabel').textContent='✅ '+name;
+  addLog('📊 Seleccionat: '+name);
+  checkShowAnalyze();
+}
+
+// TICKET
+function onTicketSelected(input){
+  const file=input.files[0];
+  if(!file||!file.type.startsWith('image/')){showError('Selecciona una imatge');return;}
+  state.ticketFile=file;state.ticketMime=file.type;
+  document.getElementById('ticketZone').classList.add('loaded');
+  const url=URL.createObjectURL(file);
+  document.getElementById('ticketContent').innerHTML=`<img src="${url}" class="ticket-preview"/><div class="drop-hint" style="color:#f59e0b;margin-top:6px">${file.name.length>24?file.name.substring(0,22)+'…':file.name}</div>`;
+  addLog('📸 Tiquet: '+file.name);
+  checkShowAnalyze();
+}
+function checkShowAnalyze(){
+  if(state.ticketFile) document.getElementById('analyzeBtn').classList.remove('hidden');
+}
+
+// ANALYZE — crida la funció Netlify (no l'API directament)
+async function analyzeTicket(){
+  hideError();setStep('detecting');addLog('🔍 Analitzant tiquet amb IA...');
+  try{
+    const b64=await toBase64(state.ticketFile);
+    const resp=await fetch('/.netlify/functions/analyze',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({imageData:b64,mediaType:state.ticketMime})
+    });
+    if(!resp.ok) throw new Error('Error servidor: '+resp.status);
+    const parsed=await resp.json();
+    if(parsed.error) throw new Error(parsed.error);
+    const matched=SUPERMERCATS.find(s=>parsed.supermercat.toLowerCase().includes(s.toLowerCase())||s.toLowerCase().includes(parsed.supermercat.toLowerCase()))||parsed.supermercat;
+    state.detectedSuper=matched;state.ticketDate=parsed.data||getTodayDate();
+    state.products=parsed.productes.map((p,i)=>({...p,id:i,include:true,edited:false}));
+    addLog(`🏪 ${matched} · ${state.products.length} productes · 📅 ${state.ticketDate}`);
+    renderReview();setStep('review');
+  }catch(err){showError('Error: '+err.message);addLog('❌ '+err.message);setStep('upload');}
+}
+
+// REVIEW
+function renderReview(){
+  const sc=SUPER_COLORS[state.detectedSuper]||'#1F4E79';
+  const si=SUPER_ICONS[state.detectedSuper]||'🏪';
+  document.getElementById('superIconEl').textContent=si;
+  document.getElementById('superIconEl').style.background=sc+'30';
+  document.getElementById('superIconEl').style.border=`2px solid ${sc}60`;
+  document.getElementById('superBadge').style.borderColor=sc+'40';
+  document.getElementById('superNameEl').textContent=state.detectedSuper;
+  document.getElementById('dateInput').value=state.ticketDate||getTodayDate();
+  const btns=document.getElementById('superButtons');btns.innerHTML='';
+  SUPERMERCATS.forEach(s=>{
+    const b=document.createElement('button');b.className='btn-super'+(s===state.detectedSuper?' active':'');
+    b.textContent=(SUPER_ICONS[s]||'')+' '+s;
+    b.style.borderColor=s===state.detectedSuper?SUPER_COLORS[s]:'#1e3a5f';
+    b.style.background=s===state.detectedSuper?SUPER_COLORS[s]+'25':'transparent';
+    b.onclick=()=>{state.detectedSuper=s;renderReview();};
+    btns.appendChild(b);
+  });
+  renderProducts();
+}
+function renderProducts(){
+  const body=document.getElementById('productListBody');body.innerHTML='';
+  state.products.forEach(p=>{
+    const row=document.createElement('div');
+    row.className='product-row'+(p.include?'':' excluded');
+    row.innerHTML=`<input type="checkbox" class="p-check" ${p.include?'checked':''} onchange="toggleProduct(${p.id})"/>
+      <input class="p-name${p.edited?' edited':''}" value="${p.nom.replace(/"/g,'&quot;')}" onchange="editProduct(${p.id},'nom',this.value)"/>
+      <input type="number" step="0.01" class="p-price" value="${p.preu}" onchange="editProduct(${p.id},'preu',this.value)"/>
+      <button class="p-del" onclick="deleteProduct(${p.id})">×</button>`;
+    body.appendChild(row);
+  });
+  updateSummary();
+}
+function updateSummary(){
+  const inc=state.products.filter(p=>p.include);
+  document.getElementById('totalAmount').textContent=inc.reduce((s,p)=>s+(parseFloat(p.preu)||0),0).toFixed(2)+' €';
+  document.getElementById('selectedCount').textContent=`${inc.length}/${state.products.length}`;
+  document.getElementById('superCountEl').textContent=inc.length;
+}
+function toggleProduct(id){state.products=state.products.map(p=>p.id===id?{...p,include:!p.include}:p);renderProducts();}
+function editProduct(id,f,v){state.products=state.products.map(p=>p.id===id?{...p,[f]:f==='preu'?parseFloat(v)||0:v,edited:true}:p);updateSummary();}
+function deleteProduct(id){state.products=state.products.filter(p=>p.id!==id);renderProducts();}
+function addProduct(){state.products.push({id:Date.now(),nom:'Nou producte',preu:0,include:true,edited:false});renderProducts();}
+
+// SAVE TO DRIVE
+async function saveToGoogleDrive(){
+  if(!state.accessToken){showError('Connecta primer amb Google');return;}
+  if(!state.driveFileId){showError("Selecciona el fitxer Excel de Drive primer");return;}
+  setStep('saving');addLog('☁️ Descarregant Excel de Drive...');
+  try{
+    const dlResp=await fetch(`https://www.googleapis.com/drive/v3/files/${state.driveFileId}?alt=media`,
+      {headers:{Authorization:'Bearer '+state.accessToken}});
+    if(!dlResp.ok) throw new Error("No s'ha pogut descarregar el fitxer");
+    const ab=await dlResp.arrayBuffer();
+    addLog('📥 Excel descarregat');
+    const XLSX=await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
+    const wb=XLSX.read(ab,{type:'array',cellDates:true});
+    const sheetName=wb.SheetNames.find(n=>n.toLowerCase().includes('cesta'))||wb.SheetNames[0];
+    const data=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1});
+    addLog(`📋 Pestanya: "${sheetName}"`);
+    const headerRow=data[2]||data[0]||[];
+    const superColIdx=headerRow.findIndex(h=>h&&state.detectedSuper&&h.toString().toLowerCase().includes(state.detectedSuper.toLowerCase().split(' ')[0]));
+    addLog(`🔎 Columna "${state.detectedSuper}": ${superColIdx>=0?'col '+(superColIdx+1):'no trobada'}`);
+    let lastRow=data.length;
+    for(let i=data.length-1;i>=3;i--){if(data[i]?.some(c=>c!=null&&c!=='')){lastRow=i+1;break;}}
+    const dateStr=document.getElementById('dateInput').value||state.ticketDate||getTodayDate();
+    const parts=dateStr.split('/');
+    const dateVal=parts.length===3?new Date(parseInt(parts[2]),parseInt(parts[1])-1,parseInt(parts[0])):new Date();
+    const included=state.products.filter(p=>p.include);
+    included.forEach((prod,idx)=>{
+      const r=lastRow+idx;if(!data[r])data[r]=[];
+      data[r][0]=prod.nom;
+      if(superColIdx>=0)data[r][superColIdx]=prod.preu;
+      data[r][9]=dateVal;
+    });
+    addLog(`✍️ ${included.length} productes afegits`);
+    wb.Sheets[sheetName]=XLSX.utils.aoa_to_sheet(data);
+    const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([wbout],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    addLog('☁️ Pujant a Drive...');
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify({name:state.driveFileName})],{type:'application/json'}));
+    form.append('file',blob);
+    const upResp=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${state.driveFileId}?uploadType=multipart`,
+      {method:'PATCH',headers:{Authorization:'Bearer '+state.accessToken},body:form});
+    if(!upResp.ok) throw new Error('Error pujant: '+(await upResp.text()));
+    addLog('✅ Guardat a Google Drive!');
+    document.getElementById('doneMsg').textContent=`${included.length} productes de ${state.detectedSuper} (${dateStr}) guardats a "${state.driveFileName}"`;
+    setStep('done');
+  }catch(err){showError('Error: '+err.message);addLog('❌ '+err.message);setStep('review');}
+}
+
+// RESET
+function reset(){
+  state.ticketFile=null;state.ticketMime=null;state.detectedSuper=null;state.ticketDate=null;state.products=[];state.logs=[];
+  document.getElementById('ticketZone').className='drop-zone';
+  document.getElementById('ticketContent').innerHTML=`<div class="drop-icon">📸</div><div class="drop-label">TOCA PER OBRIR CÀMERA</div><div class="drop-hint">O selecciona de la galeria</div>`;
+  document.getElementById('analyzeBtn').classList.remove('hidden');
+  document.getElementById('logBox').classList.add('hidden');
+  document.getElementById('logLines').innerHTML='';
+  hideError();setStep('upload');
+}
+</script>
+</body>
+</html>
